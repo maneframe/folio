@@ -116,19 +116,26 @@ module Folio
 
         def paginate(options={})
           if !options.has_key?(:total_entries)
-            group_values = self.scoped.group_values
+            scope = if ::Rails.version < '4'
+                      self.scoped
+                    elsif self.is_a?(::ActiveRecord::Relation)
+                      self
+                    else
+                      self.scope
+                    end
+            group_values = scope.group_values
             unless group_values.empty?
               # total_entries left to an auto-count, but the relation being
               # paginated has a grouping. we need to do a special count, lest
               # self.count give us a hash instead of the integer we expect.
-              if self.scoped.having_values.empty?
+              if scope.having_values.empty?
                 options[:total_entries] = except(:group).select(group_values).uniq.count
               else
                 options[:total_entries] = unscoped.from("(#{to_sql}) a").count
               end
             end
           end
-          super(options).all
+          super(options).to_a
         end
       end
 
